@@ -31,6 +31,10 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.Promise;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -103,12 +107,9 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
   }
 
   private Boolean isEmulator() {
-    return Build.FINGERPRINT.startsWith("generic")
-        || Build.FINGERPRINT.startsWith("unknown")
-        || Build.MODEL.contains("google_sdk")
-        || Build.MODEL.contains("Emulator")
-        || Build.MODEL.contains("Android SDK built for x86")
-        || Build.MANUFACTURER.contains("Genymotion")
+    return Build.FINGERPRINT.startsWith("generic") || Build.FINGERPRINT.startsWith("unknown")
+        || Build.MODEL.contains("google_sdk") || Build.MODEL.contains("Emulator")
+        || Build.MODEL.contains("Android SDK built for x86") || Build.MANUFACTURER.contains("Genymotion")
         || (Build.BRAND.startsWith("generic") && Build.DEVICE.startsWith("generic"))
         || "google_sdk".equals(Build.PRODUCT);
   }
@@ -128,7 +129,8 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
       return DeviceType.TV;
     }
 
-    // Find the current window manager, if none is found we can't measure the device physical size.
+    // Find the current window manager, if none is found we can't measure the device
+    // physical size.
     WindowManager windowManager = (WindowManager) reactContext.getSystemService(Context.WINDOW_SERVICE);
     if (windowManager == null) {
       return DeviceType.UNKNOWN;
@@ -170,7 +172,8 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void isPinOrFingerprintSet(Callback callback) {
-    KeyguardManager keyguardManager = (KeyguardManager) this.reactContext.getApplicationContext().getSystemService(Context.KEYGUARD_SERVICE); //api 16+
+    KeyguardManager keyguardManager = (KeyguardManager) this.reactContext.getApplicationContext()
+        .getSystemService(Context.KEYGUARD_SERVICE); // api 16+
     callback.invoke(keyguardManager.isKeyguardSecure());
   }
 
@@ -191,20 +194,21 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
       try {
         List<NetworkInterface> all = Collections.list(NetworkInterface.getNetworkInterfaces());
         for (NetworkInterface nif : all) {
-          if (!nif.getName().equalsIgnoreCase("wlan0")) continue;
+          if (!nif.getName().equalsIgnoreCase("wlan0"))
+            continue;
 
           byte[] macBytes = nif.getHardwareAddress();
           if (macBytes == null) {
-              macAddress = "";
+            macAddress = "";
           } else {
 
             StringBuilder res1 = new StringBuilder();
             for (byte b : macBytes) {
-                res1.append(String.format("%02X:",b));
+              res1.append(String.format("%02X:", b));
             }
 
             if (res1.length() > 0) {
-                res1.deleteCharAt(res1.length() - 1);
+              res1.deleteCharAt(res1.length() - 1);
             }
 
             macAddress = res1.toString();
@@ -247,7 +251,8 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void getBatteryLevel(Promise p) {
-    Intent batteryIntent = this.reactContext.getApplicationContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    Intent batteryIntent = this.reactContext.getApplicationContext().registerReceiver(null,
+        new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
     int level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
     int scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
     float batteryLevel = level / (float) scale;
@@ -258,21 +263,42 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
   public void isAirPlaneMode(Promise p) {
     boolean isAirPlaneMode;
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-        isAirPlaneMode = Settings.System.getInt(this.reactContext.getContentResolver(),Settings.System.AIRPLANE_MODE_ON, 0) != 0;
+      isAirPlaneMode = Settings.System.getInt(this.reactContext.getContentResolver(), Settings.System.AIRPLANE_MODE_ON,
+          0) != 0;
     } else {
-        isAirPlaneMode = Settings.Global.getInt(this.reactContext.getContentResolver(),Settings.Global.AIRPLANE_MODE_ON, 0) != 0;
+      isAirPlaneMode = Settings.Global.getInt(this.reactContext.getContentResolver(), Settings.Global.AIRPLANE_MODE_ON,
+          0) != 0;
     }
     p.resolve(isAirPlaneMode);
   }
 
   public String getInstallReferrer() {
-    SharedPreferences sharedPref = getReactApplicationContext().getSharedPreferences("react-native-device-info", Context.MODE_PRIVATE);
+    SharedPreferences sharedPref = getReactApplicationContext().getSharedPreferences("react-native-device-info",
+        Context.MODE_PRIVATE);
     return sharedPref.getString("installReferrer", null);
   }
 
+  @ReactMethod
+  public void getAllDeviceInfo(Callback cb) {
+    try {
+      String deviceModel = android.os.Build.MODEL;
+      String deviceBrand = android.os.Build.BRAND;
+      String deviceName = android.os.Build.DEVICE;
+      String deviceDisplayID = android.os.Build.DISPLAY;
+
+      JSONObject item = new JSONObject();
+      item.put("deviceModel", deviceModel);
+      item.put("deviceBrand", deviceBrand);
+      item.put("deviceName", deviceName);
+      item.put("deviceDisplayID", deviceDisplayID);
+      cb.invoke(null, item.toString());
+    } catch (Exception e) {
+      cb.invoke(e.toString(), null);
+    }
+  }
+
   @Override
-  public @Nullable
-  Map<String, Object> getConstants() {
+  public @Nullable Map<String, Object> getConstants() {
     HashMap<String, Object> constants = new HashMap<String, Object>();
 
     PackageManager packageManager = this.reactContext.getPackageManager();
@@ -286,7 +312,8 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
     try {
       PackageInfo packageInfo = packageManager.getPackageInfo(packageName, 0);
       PackageInfo info = packageManager.getPackageInfo(packageName, 0);
-      String applicationName = this.reactContext.getApplicationInfo().loadLabel(this.reactContext.getPackageManager()).toString();
+      String applicationName = this.reactContext.getApplicationInfo().loadLabel(this.reactContext.getPackageManager())
+          .toString();
       constants.put("appVersion", info.versionName);
       constants.put("buildNumber", info.versionCode);
       constants.put("firstInstallTime", info.firstInstallTime);
@@ -311,7 +338,6 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
       }
     }
 
-
     try {
       if (Class.forName("com.google.android.gms.iid.InstanceID") != null) {
         constants.put("instanceId", com.google.android.gms.iid.InstanceID.getInstance(this.reactContext).getId());
@@ -329,7 +355,8 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
     constants.put("apiLevel", Build.VERSION.SDK_INT);
     constants.put("deviceLocale", this.getCurrentLanguage());
     constants.put("deviceCountry", this.getCurrentCountry());
-    constants.put("uniqueId", Settings.Secure.getString(this.reactContext.getContentResolver(), Settings.Secure.ANDROID_ID));
+    constants.put("uniqueId",
+        Settings.Secure.getString(this.reactContext.getContentResolver(), Settings.Secure.ANDROID_ID));
     constants.put("systemManufacturer", Build.MANUFACTURER);
     constants.put("bundleId", packageName);
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
@@ -344,11 +371,14 @@ public class RNDeviceModule extends ReactContextBaseJavaModule {
     constants.put("isTablet", this.isTablet());
     constants.put("fontScale", this.fontScale());
     constants.put("is24Hour", this.is24Hour());
-    if (getCurrentActivity() != null &&
-        (getCurrentActivity().checkCallingOrSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED ||
-            getCurrentActivity().checkCallingOrSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED ||
-            getCurrentActivity().checkCallingOrSelfPermission("android.permission.READ_PHONE_NUMBERS") == PackageManager.PERMISSION_GRANTED)) {
-      TelephonyManager telMgr = (TelephonyManager) this.reactContext.getApplicationContext().getSystemService(Context.TELEPHONY_SERVICE);
+    if (getCurrentActivity() != null && (getCurrentActivity()
+        .checkCallingOrSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        || getCurrentActivity()
+            .checkCallingOrSelfPermission(Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
+        || getCurrentActivity().checkCallingOrSelfPermission(
+            "android.permission.READ_PHONE_NUMBERS") == PackageManager.PERMISSION_GRANTED)) {
+      TelephonyManager telMgr = (TelephonyManager) this.reactContext.getApplicationContext()
+          .getSystemService(Context.TELEPHONY_SERVICE);
       constants.put("phoneNumber", telMgr.getLine1Number());
     }
     constants.put("carrier", this.getCarrier());
